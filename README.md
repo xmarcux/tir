@@ -1,15 +1,26 @@
 # tir
-Timer that keeps track on time passed. 
+Timer that keeps track on time passed. </br>
 Suitable to use to keep track on working time.
 
-Start and stop timer with simple commands.
+Start and stop timer with simple commands.</br>
 Search for time between periods and write a report.
 
 tir is written in fortran.
+
+    tir - WorkTimer.
+    Copyright (C) 2015  Marcus Pedersén
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 tir is compiled with gfortran: https://gcc.gnu.org/wiki/GFortran
