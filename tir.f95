@@ -24,16 +24,21 @@
 ! -e or --stop  : Stops running period of time if timer is running.
 ! -q date date  : Returns report on time registered between dates. 
 !                 Date format YYYYMMDD.
+! -t or --today : Returns a report on time registered for today.
+! -y --yesterday: Returns a report on time registered for yesterday.
+! -m --month    : Returns a report on time registered for this month.
+! -o --lastmonth: Returns a report on time registered for last month.
 ! -l            : Shows licence and exit program.
 ! -h            : Shows help text and exit program.
 
 program tir
     use run
+    use report
 
     implicit none
 
     integer :: noArgs
-    character(7) :: arg1
+    character(11) :: arg1
     character(6) :: format
     character(8) :: date
     character(6) :: time
@@ -94,6 +99,18 @@ program tir
                 write(*,format) "Timer is already stopped"
                 write(*,format) "Use -s or --start to start timer."
             end if
+        else if (trim(arg1) == '-t' .or. &
+                 trim(arg1) == '--today') then
+            call today(.false.)
+        else if (trim(arg1) == '-y' .or. &
+                 trim(arg1) == '--yesterday') then
+            call yesterday()
+        else if (trim(arg1) == '-m' .or. &
+                 trim(arg1) == '--month') then
+            call thisMonth()
+        else if (trim(arg1) == '-o' .or. &
+                 trim(arg1) == '--lastmonth') then
+            call lastMonth()
         else
             write(*, format) "Wrong argument"
             write(*, format) "Try: tir -h"
@@ -149,6 +166,18 @@ contains
         write(*, format2) "Starting timer if it is not running"
         write(*, format) "-e, --stop"
         write(*, format2) "Stopping timer if it is running"
+        write(*, format) "-t, --today (option: FILE)"
+        write(*, format2)"Returns a report on time registered for today."
+        write(*, format2) "If option FILE is given, then report is written to file."
+        write(*, format) "-y, --yesterday (option: FILE)"
+        write(*, format2)"Returns a report on time registered for yesterday."
+        write(*, format2) "If option FILE is given, then report is written to file."
+        write(*, format) "-m, --month (option: FILE)"
+        write(*, format2)"Returns a report on time registered for this month."
+        write(*, format2) "If option FILE is given, then report is written to file."
+        write(*, format) "-o, --lastmonth (option: FILE)"
+        write(*, format2)"Returns a report on time registered for last month."
+        write(*, format2) "If option FILE is given, then report is written to file."
         write(*, format) "-q DATE DATE (option: FILE)"
         write(*, format2) "Returns report on time registered between dates."
         write(*, format2) "Date format YYYYMMDD." 

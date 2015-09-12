@@ -157,7 +157,7 @@ module run
         integer :: ios
         character(8) :: odate, ndate
         character(6) :: otime, ntime, dirname
-        character(32) :: filepath
+        character(27) :: filepath
         integer, dimension(4) :: timediff
         logical :: fileExists, errorFlag
 
@@ -180,7 +180,7 @@ module run
         close(20)        
 
         read(odate,'(a6)') dirname
-        filepath = "tirdb/" // dirname // "/" // dirname // "_timerlog.tir"
+        filepath = "tirdb/" // dirname // "/" // dirname // "_log.tir"
 
         ios = system("mkdir -p tirdb/" // dirname)
         if (.not. ios == 0) then

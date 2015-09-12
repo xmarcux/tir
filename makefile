@@ -22,15 +22,18 @@ CFLAGS = -c -Wall
 
 all: tir
 
-tir: tir.o run.o
-	$(CC) tir.o run.o -o tir
+tir: tir.o run.o report.o
+	$(CC) tir.o run.o report.o -o tir
 
-tir.o: tir.f95 run.o
+tir.o: tir.f95 run.o report.o
 	$(CC) $(CFLAGS) tir.f95
+
+report.o: report.f95 run.o
+	$(CC) $(CFLAGS) report.f95
 
 run.o: run.f95
 	$(CC) $(CFLAGS) run.f95
 
 clean:
-	rm *.o *~ *.mod tir
+	rm *.o *~ *.mod fort.* tir
 	rm -fr tirdb
