@@ -102,16 +102,61 @@ module report
             end if
         end if
 
+        write(*,*) date, " ", date2
+
         call searchTime(date, date2)
 
     end subroutine lastMonth
+
+    !Returns true if date is correct.
+    !Date between now and 2000-01-01
+    logical function checkDate(date)
+        character(8), intent(in) :: date
+        character(8) :: dateNow
+        integer :: year, month, day, yearNow, monthNow, dayNow
+        logical :: dateOk
+
+        dateOk = .false.
+
+        call date_and_time(dateNow)
+
+        read(date(1:4),'(I4)') year
+        read(date(5:6),'(I2)') month
+        read(date(7:8),'(I2)') day
+        read(dateNow(1:4),'(I4)') yearNow
+        read(dateNow(5:6),'(I2)') monthNow
+        read(dateNow(7:8),'(I2)') dayNow
+
+        if (year >= 2000 .and. year <= yearNow) then
+            if (month == 2 .and. mod(year, 4) == 0 .and. day <= 29) then
+                dateOk = .true.
+            else if ((month == 4 .or. month == 6 .or. &
+                     month == 9 .or. month == 11) .and. day <= 30) then
+                dateOk = .true.
+            else if (day <= 31) then
+                dateOk = .true.
+            end if
+        end if
+
+        if (dateOk .and. year == yearNow .and. &
+            month == monthNow .and. day > dayNow) then
+            dateOk = .false.
+        else if (dateOk .and. year == yearNow .and. &
+                 month > monthNow) then
+            dateOk = .false.
+        end if
+  
+        checkDate = dateOk
+
+    end function checkDate
+
 
     subroutine searchTime(fromDate, toDate)
         character(8), intent(in) :: toDate
         character(8), intent(inout) :: fromDate
         logical :: fileExists, fileOpen
         integer :: ios, noTimes, iMonth, iYear
-        integer, dimension(4) :: timeNow, totTime
+        integer, dimension(4) :: timeNow, totTime, monthTime
         character(27) :: filepath
         character(6) :: date, tTime, nowTime
         character(8) :: tDate, nowDate
@@ -136,9 +181,14 @@ module report
         totTime(3) = 0
         totTime(4) = 0
 
+        monthTime(1) = 0
+        monthTime(2) = 0
+        monthTime(3) = 0
+        monthTime(4) = 0
+
         call date_and_time(tDate, tTime)
 
-        if (running() .and. fromDate == tDate) then
+        if (running() .and. toDate >= tDate) then
             timeNow = timeRunning()
             noTimes = 1
 
@@ -172,6 +222,7 @@ module report
 
         do
             if(fromDate <= toDate) then
+                read(fromDate,'(a6)') date
                 filepath = "tirdb/" // date // "/" // date // "_log.tir"
 
                 inquire(file=filepath, exist=fileExists)
@@ -211,13 +262,48 @@ module report
                                     totTime(2) = totTime(2) + t%hours
                                     totTime(3) = totTime(3) + t%mins
                                     totTime(4) = totTime(4) + t%secs
+                                    monthTime(1) = monthTime(1) + t%days
+                                    monthTime(2) = monthTime(2) + t%hours
+                                    monthTime(3) = monthTime(3) + t%mins
+                                    monthTime(4) = monthTime(4) + t%secs
                                 else if (fromDate > t%startDate .and. &
                                          fromDate == t%stopDate) then
                                     write(*,writeF) t
+                                    noTimes = noTimes + 1
                                     read(t%stopTime,'(I2,I2,I2)') t%hours, t%mins, t%secs
                                     totTime(2) = totTime(2) + t%hours
                                     totTime(3) = totTime(3) + t%mins
                                     totTime(4) = totTime(4) + t%secs
+                                    monthTime(2) = monthTime(2) + t%hours
+                                    monthTime(3) = monthTime(3) + t%mins
+                                    monthTime(4) = monthTime(4) + t%secs
+                                else if (toDate == t%startDate .and. &
+                                         toDate < t%stopDate) then
+                                    write(*,writeF) t
+                                    noTimes = noTimes + 1
+                                    read(t%startTime,'(I2,I2,I2)') t%hours, t%mins, t%secs
+                                        if (t%hours == 0 .and. t%mins == 0 .and. t%secs == 0) then
+                                            t%hours = 24
+                                        else if (t%mins == 0 .and. t%secs == 0) then
+                                            t%hours = 24 - t%hours
+                                        else if (t%mins == 0) then
+                                            t%hours = 23 - t%hours
+                                            t%mins = 59
+                                            t%secs = 60 - t%secs
+                                        else if (t%secs == 0) then
+                                            t%hours = 23 - t%hours
+                                            t%mins = 60 - t%mins
+                                        else
+                                            t%hours = 23 - t%hours
+                                            t%mins = 59 - t%mins
+                                            t%secs = 60 - t%secs
+                                        end if
+                                    totTime(2) = totTime(2) + t%hours
+                                    totTime(3) = totTime(3) + t%mins
+                                    totTime(4) = totTime(4) + t%secs
+                                    monthTime(2) = monthTime(2) + t%hours
+                                    monthTime(3) = monthTime(3) + t%mins
+                                    monthTime(4) = monthTime(4) + t%secs
                                 end if
                             end if
                         end do
@@ -233,8 +319,27 @@ module report
                         close(20)
                         write(*,'(x,a)') &
                               "------------------------------------------------------------------------"
-!write total month: d h m s
+                        write(*,'(3x,a13,25x,I8,I8,I8,I8,/)') "Total month: ", monthTime
+                        monthTime(1) = 0
+                        monthTime(2) = 0
+                        monthTime(3) = 0
+                        monthTime(4) = 0
+                        write(*,'(x,a)') &
+                              "------------------------------------------------------------------------"
                     end if
+                else
+                    read(fromDate(5:6), '(I2.2)') iMonth
+                    iMonth = iMonth + 1
+                    if (iMonth >= 13) then
+                        read(fromDate(1:4), '(I4)') iYear
+                        iYear = iYear + 1
+                        iMonth = 1
+                        write(fromDate(1:4),'(I4.4)') iYear
+                    end if
+
+                    write(fromDate(5:6),'(I2.2)') iMonth
+                    fromDate(7:8) = "01"
+
                 end if
             else
                 inquire(file=filepath, opened=fileOpen)
@@ -245,12 +350,10 @@ module report
             end if
         end do
 
-        if (fromDate == tDate) then
-            if (timeNow(1) /= 0 .or. timeNow(2) /= 0 .or. &
-                timeNow(3) /= 0 .or. timeNow(4) /= 0) then
-                write(*,writeF) nowDate, nowTime, "Running", " ", timeNow(1), &
-                                timeNow(2), timeNow(3), timeNow(4)
-            end if
+        if (timeNow(1) /= 0 .or. timeNow(2) /= 0 .or. &
+            timeNow(3) /= 0 .or. timeNow(4) /= 0) then
+            write(*,writeF) nowDate, nowTime, "Running", " ", timeNow(1), &
+                            timeNow(2), timeNow(3), timeNow(4)
         end if
 
         if (noTimes == 0) then
@@ -266,6 +369,19 @@ module report
 
         write(*,'(x,a)') &
                       "------------------------------------------------------------------------"
+        monthTime(1) = monthTime(1) + timeNow(1)
+        monthTime(2) = monthTime(2) + timeNow(2)
+        monthTime(3) = monthTime(3) + timeNow(3)
+        monthTime(4) = monthTime(4) + timeNow(4)
+
+        monthTime(3) = monthTime(3) + (monthTime(4)/60)
+        monthTime(4) = mod(monthTime(4),60)
+        monthTime(2) = monthTime(2) + (monthTime(3)/60)
+        monthTime(3) = mod(monthTime(3),60)
+        monthTime(1) = monthTime(1) + (monthTime(2)/24)
+        monthTime(2) = mod(monthTime(2),24)        
+
+        write(*,'(3x,a13,25x,I8,I8,I8,I8,/)') "Total month: ", monthTime
         write(*,'(3x,a,I6)') "Number of records found: ", noTimes
         write(*,'(/,3x,a)') "Total time recorded: "
         write(*,'(3x,a9,I4,/,3x,a9,I4,/,3x,a9,I4,/,3x,a9,I4,/)') &

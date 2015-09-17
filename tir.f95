@@ -40,7 +40,7 @@ program tir
     integer :: noArgs
     character(11) :: arg1
     character(6) :: format
-    character(8) :: date
+    character(8) :: date, arg2, arg3
     character(6) :: time
     integer, dimension(4) :: timePassed
 
@@ -116,10 +116,39 @@ program tir
             write(*, format) "Try: tir -h"
             write(*, format) "for help."
         end if
-    else
-        !This is a search for dates in db.
     end if
 
+    if (noArgs == 3) then
+        call get_command_argument(1, arg1)
+        call get_command_argument(2, arg2)
+        call get_command_argument(3, arg3)
+
+        if (trim(arg1) == '-q') then
+            if (checkDate(arg2) .and. checkDate(arg3)) then
+                call searchTime(arg2, arg3)
+            else
+                if (.not. checkDate(arg2)) then
+                    write(*, format) "First date: " // arg2 // " is wrong."
+                end if
+
+                if (.not. checkDate(arg3)) then
+                    write(*, format) "Second date: " // arg3 // " is wrong."
+                end if
+
+                write(*, format) "Check dates and try again."
+            end if
+        else
+            write(*, format) "Wrong argument"
+            write(*, format) "Try: tir -h"
+            write(*, format) "for help."
+        end if
+    end if
+
+    if (noArgs == 2 .or. noArgs > 3) then
+        write(*, format) "Wrong argument"
+        write(*, format) "Try: tir -h"
+        write(*, format) "for help."
+    end if
 
 contains
 
