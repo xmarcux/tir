@@ -40,7 +40,8 @@ program tir
     integer :: noArgs
     character(11) :: arg1
     character(6) :: format
-    character(8) :: date, arg2, arg3
+    character(8) :: date, arg3
+    character(100) :: arg2, arg4
     character(6) :: time
     integer, dimension(4) :: timePassed
 
@@ -101,20 +102,39 @@ program tir
             end if
         else if (trim(arg1) == '-t' .or. &
                  trim(arg1) == '--today') then
-            call today(.false.)
+            call today(.false., "")
         else if (trim(arg1) == '-y' .or. &
                  trim(arg1) == '--yesterday') then
-            call yesterday()
+            call yesterday(.false., "")
         else if (trim(arg1) == '-m' .or. &
                  trim(arg1) == '--month') then
-            call thisMonth()
+            call thisMonth(.false., "")
         else if (trim(arg1) == '-o' .or. &
                  trim(arg1) == '--lastmonth') then
-            call lastMonth()
+            call lastMonth(.false., "")
         else
-            write(*, format) "Wrong argument"
-            write(*, format) "Try: tir -h"
-            write(*, format) "for help."
+            call wrongArgs()
+        end if
+    end if
+
+    if (noArgs == 2) then
+        call get_command_argument(1, arg1)
+        call get_command_argument(2, arg2)
+
+        if (trim(arg1) == '-t' .or. &
+            trim(arg1) == '--today') then
+            call today(.true., arg2)
+        else if (trim(arg1) == '-y' .or. &
+                 trim(arg1) == '--yesterday') then
+            call yesterday(.true., arg2)
+        else if (trim(arg1) == '-m' .or. &
+                 trim(arg1) == '--month') then
+            call thisMonth(.true., arg2)
+        else if (trim(arg1) == '-o' .or. &
+                 trim(arg1) == '--lastmonth') then
+            call lastMonth(.true., arg2)
+        else
+            call wrongArgs()
         end if
     end if
 
@@ -124,33 +144,71 @@ program tir
         call get_command_argument(3, arg3)
 
         if (trim(arg1) == '-q') then
-            if (checkDate(arg2) .and. checkDate(arg3)) then
-                call searchTime(arg2, arg3)
-            else
-                if (.not. checkDate(arg2)) then
-                    write(*, format) "First date: " // arg2 // " is wrong."
-                end if
-
-                if (.not. checkDate(arg3)) then
-                    write(*, format) "Second date: " // arg3 // " is wrong."
-                end if
-
-                write(*, format) "Check dates and try again."
+            if (qCorrectDate()) then
+                call searchTime(arg2, arg3, .false., "")
             end if
         else
-            write(*, format) "Wrong argument"
-            write(*, format) "Try: tir -h"
-            write(*, format) "for help."
+            call wrongArgs()
         end if
     end if
 
-    if (noArgs == 2 .or. noArgs > 3) then
-        write(*, format) "Wrong argument"
-        write(*, format) "Try: tir -h"
-        write(*, format) "for help."
+    if (noArgs > 4) then
+        call wrongArgs()
+    end if
+
+    if (noArgs == 4) then
+        call get_command_argument(1, arg1)
+        call get_command_argument(2, arg2)
+        call get_command_argument(3, arg3)
+        call get_command_argument(4, arg4)
+
+        if (trim(arg1) == '-q') then
+            if (qCorrectDate()) then
+                call searchTime(arg2, arg3, .true., arg4)
+            end if
+        else
+            call wrongArgs()
+        end if
     end if
 
 contains
+
+    !Prints to user that wrong argument is given
+    subroutine wrongArgs()
+        character(6) ::format
+
+        format = "(3x,a)"
+
+        write(*, format) "Wrong argument"
+        write(*, format) "Try: tir -h"
+        write(*, format) "for help."
+    end subroutine wrongArgs
+
+    !Checks if dates are correct
+    !and returns true if they are correct
+    !Function is to be used with -q flag
+    logical function qCorrectDate()
+        character(8) :: arg2, arg3
+
+        call get_command_argument(2, arg2)
+        call get_command_argument(3, arg3)
+
+        if (checkDate(arg2) .and. checkDate(arg3)) then
+            qCorrectDate = .true.
+        else
+            if (.not. checkDate(arg2)) then
+                write(*, format) "First date: " // arg2 // " is wrong."
+            end if
+
+            if (.not. checkDate(arg3)) then
+                write(*, format) "Second date: " // arg3 // " is wrong."
+            end if
+
+            write(*, format) "Check dates and try again."
+            qCorrectDate = .false.
+        end if
+
+    end function qCorrectDate
 
     !Subroutine is called if flag -l is used as argument
     subroutine license()

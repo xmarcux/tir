@@ -37,40 +37,47 @@ module report
     contains
 
     !Prints a report on todays time.
-    subroutine today(toFile)
+    subroutine today(toFile, filename)
         logical, intent(in) :: toFile
+        character(100), intent(in) :: filename
         character(8) :: date, date2
 
         call date_and_time(date)
         date2 = date
-        call searchTime(date, date2)
+        call searchTime(date, date2, toFile, filename)
 
     end subroutine today
 
     !Prints a report on yesterdays time
-    subroutine yesterday()
+    subroutine yesterday(toFile, filename)
+        logical, intent(in) :: toFile
+        character(100), intent(in) :: filename
         character(8) :: date, date2
 
         call date_and_time(date)
         date = prevDate(date)
         date2 = date
-        call searchTime(date, date2)
+        call searchTime(date, date2, toFile, filename)
 
     end subroutine yesterday
 
     !Prints a report on this months time
-    subroutine thisMonth()
+    subroutine thisMonth(toFile, filename)
+        logical, intent(in) :: toFile
+        character(100), intent(in) :: filename
         character(8) :: date, date2
 
         call date_and_time(date)
         date2(1:6) = date(1:6)
         date2(7:8) = "01"
-        call searchTime(date2, date)        
+        call searchTime(date2, date, toFile, filename)
 
     end subroutine thisMonth
 
     !Returns a report on last months time
-    subroutine lastMonth()
+    subroutine lastMonth(toFile, filename)
+        logical, intent(in) :: toFile
+        character(100), intent(in) :: filename
         character(8) :: date, date2
         integer :: month, year
 
@@ -104,7 +111,7 @@ module report
 
         write(*,*) date, " ", date2
 
-        call searchTime(date, date2)
+        call searchTime(date, date2, toFile, filename)
 
     end subroutine lastMonth
 
@@ -151,11 +158,13 @@ module report
     end function checkDate
 
 
-    subroutine searchTime(fromDate, toDate)
+    subroutine searchTime(fromDate, toDate, toFile, fileName)
         character(8), intent(in) :: toDate
         character(8), intent(inout) :: fromDate
-        logical :: fileExists, fileOpen
-        integer :: ios, noTimes, iMonth, iYear
+        logical, intent(in) :: toFile
+        character(100), intent(in) :: fileName
+        logical :: fileExists, fileOpen, writeToFile, isOpen
+        integer :: ios, iosw, noTimes, iMonth, iYear
         integer, dimension(4) :: timeNow, totTime, monthTime
         character(27) :: filepath
         character(6) :: date, tTime, nowTime
@@ -186,6 +195,29 @@ module report
         monthTime(3) = 0
         monthTime(4) = 0
 
+        writeToFile = toFile
+
+        if (writeToFile) then
+            inquire(file=fileName, exist=fileExists)
+            if (fileExists) then
+                if (overwriteReport(fileName)) then
+                    open(unit=88, file=fileName, status='old', &
+                         action='write', position='rewind', iostat=iosw)
+                else
+                    stop
+                end if
+            else
+                open(unit=88, file=fileName, status='new', &
+                     action='write', position='rewind', iostat=iosw)
+            end if
+
+            if (iosw /= 0) then
+                write(*,'(x,a,a)') "Error opening file: ", fileName
+                write(*,'(x,a,/)')   "Writes report to terminal."
+                writeToFile = .false.
+            end if
+        end if
+
         call date_and_time(tDate, tTime)
 
         if (running() .and. toDate >= tDate) then
@@ -212,9 +244,15 @@ module report
             totTime = totTime + timeNow
         end if
 
-        write(*, headF) "Start Date", "End Date", "Days", "Hours", "Mins", "Secs"
-        write(*,'(x,a)') &
-              "------------------------------------------------------------------------"
+        if (writeToFile) then
+            write(88, headF) "Start Date", "End Date", "Days", "Hours", "Mins", "Secs"
+            write(88,'(x,a)') &
+                  "------------------------------------------------------------------------"
+        else
+            write(*, headF) "Start Date", "End Date", "Days", "Hours", "Mins", "Secs"
+            write(*,'(x,a)') &
+                  "------------------------------------------------------------------------"
+        end if
 
         if (date == "0") then
             read(fromDate,'(a6)') date
@@ -256,7 +294,12 @@ module report
                             else
                                 if (fromDate <= t%startDate .and. &
                                     toDate >= t%stopDate) then
-                                    write(*,writeF) t
+                                    if (writeToFile) then
+                                        write(88,writeF) t
+                                    else
+                                        write(*,writeF) t
+                                    end if
+
                                     noTimes = noTimes + 1
                                     totTime(1) = totTime(1) + t%days
                                     totTime(2) = totTime(2) + t%hours
@@ -268,7 +311,12 @@ module report
                                     monthTime(4) = monthTime(4) + t%secs
                                 else if (fromDate > t%startDate .and. &
                                          fromDate == t%stopDate) then
-                                    write(*,writeF) t
+                                    if (writeToFile) then
+                                        write(88,writeF) t
+                                    else
+                                        write(*,writeF) t
+                                    end if
+
                                     noTimes = noTimes + 1
                                     read(t%stopTime,'(I2,I2,I2)') t%hours, t%mins, t%secs
                                     totTime(2) = totTime(2) + t%hours
@@ -279,7 +327,12 @@ module report
                                     monthTime(4) = monthTime(4) + t%secs
                                 else if (toDate == t%startDate .and. &
                                          toDate < t%stopDate) then
-                                    write(*,writeF) t
+                                    if (writeToFile) then
+                                        write(88,writeF) t
+                                    else
+                                        write(*,writeF) t
+                                    end if
+
                                     noTimes = noTimes + 1
                                     read(t%startTime,'(I2,I2,I2)') t%hours, t%mins, t%secs
                                         if (t%hours == 0 .and. t%mins == 0 .and. t%secs == 0) then
@@ -317,15 +370,28 @@ module report
                     if (fromDate(1:6)  /= date .and. fromDate <= toDate) then
                         date = fromDate(1:6)
                         close(20)
-                        write(*,'(x,a)') &
-                              "------------------------------------------------------------------------"
-                        write(*,'(3x,a13,25x,I8,I8,I8,I8,/)') "Total month: ", monthTime
+                        if (writeToFile) then
+                            write(88,'(x,a)') &
+                                  "------------------------------------------------------------------------"
+                            write(88,'(3x,a13,25x,I8,I8,I8,I8,/)') "Total month: ", monthTime
+                        else
+                            write(*,'(x,a)') &
+                                  "------------------------------------------------------------------------"
+                            write(*,'(3x,a13,25x,I8,I8,I8,I8,/)') "Total month: ", monthTime
+                        end if
+
                         monthTime(1) = 0
                         monthTime(2) = 0
                         monthTime(3) = 0
                         monthTime(4) = 0
-                        write(*,'(x,a)') &
-                              "------------------------------------------------------------------------"
+                        if (writeToFile) then
+                            write(88,'(x,a)') &
+                                  "------------------------------------------------------------------------"
+                        else
+                            write(*,'(x,a)') &
+                                  "------------------------------------------------------------------------"
+                        end if
+
                     end if
                 else
                     read(fromDate(5:6), '(I2.2)') iMonth
@@ -352,12 +418,21 @@ module report
 
         if (timeNow(1) /= 0 .or. timeNow(2) /= 0 .or. &
             timeNow(3) /= 0 .or. timeNow(4) /= 0) then
-            write(*,writeF) nowDate, nowTime, "Running", " ", timeNow(1), &
-                            timeNow(2), timeNow(3), timeNow(4)
+            if (writeToFile) then
+                write(88,writeF) nowDate, nowTime, "Running", " ", timeNow(1), &
+                                timeNow(2), timeNow(3), timeNow(4)
+            else
+                write(*,writeF) nowDate, nowTime, "Running", " ", timeNow(1), &
+                                timeNow(2), timeNow(3), timeNow(4)
+            end if
         end if
 
         if (noTimes == 0) then
-            write(*,'(3x,a)') "No records found"
+            if (writeToFile) then
+                write(88,'(3x,a)') "No records found"
+            else
+                write(*,'(3x,a)') "No records found"
+            end if
         end if
 
         totTime(3) = totTime(3) + (totTime(4)/60)
@@ -367,8 +442,14 @@ module report
         totTime(1) = totTime(1) + (totTime(2)/24)
         totTime(2) = mod(totTime(2),24)
 
-        write(*,'(x,a)') &
-                      "------------------------------------------------------------------------"
+        if (writeToFile) then
+            write(88,'(x,a)') &
+                          "------------------------------------------------------------------------"
+        else
+            write(*,'(x,a)') &
+                          "------------------------------------------------------------------------"
+        end if
+
         monthTime(1) = monthTime(1) + timeNow(1)
         monthTime(2) = monthTime(2) + timeNow(2)
         monthTime(3) = monthTime(3) + timeNow(3)
@@ -380,13 +461,29 @@ module report
         monthTime(3) = mod(monthTime(3),60)
         monthTime(1) = monthTime(1) + (monthTime(2)/24)
         monthTime(2) = mod(monthTime(2),24)        
+     
+        if (writeToFile) then
+            write(88,'(3x,a13,25x,I8,I8,I8,I8,/)') "Total month: ", monthTime
+            write(88,'(3x,a,I6)') "Number of records found: ", noTimes
+            write(88,'(/,3x,a)') "Total time recorded: "
+            write(88,'(3x,a9,I4,/,3x,a9,I4,/,3x,a9,I4,/,3x,a9,I4,/)') &
+                  "Days:    ", totTime(1), "Hours:   ", totTime(2), &
+                  "Minutes: ", totTime(3), "Seconds: ", totTime(4)
+        else
+            write(*,'(3x,a13,25x,I8,I8,I8,I8,/)') "Total month: ", monthTime
+            write(*,'(3x,a,I6)') "Number of records found: ", noTimes
+            write(*,'(/,3x,a)') "Total time recorded: "
+            write(*,'(3x,a9,I4,/,3x,a9,I4,/,3x,a9,I4,/,3x,a9,I4,/)') &
+                  "Days:    ", totTime(1), "Hours:   ", totTime(2), &
+                  "Minutes: ", totTime(3), "Seconds: ", totTime(4)
+        end if
 
-        write(*,'(3x,a13,25x,I8,I8,I8,I8,/)') "Total month: ", monthTime
-        write(*,'(3x,a,I6)') "Number of records found: ", noTimes
-        write(*,'(/,3x,a)') "Total time recorded: "
-        write(*,'(3x,a9,I4,/,3x,a9,I4,/,3x,a9,I4,/,3x,a9,I4,/)') &
-              "Days:    ", totTime(1), "Hours:   ", totTime(2), &
-              "Minutes: ", totTime(3), "Seconds: ", totTime(4)
+        inquire(file=fileName, opened=isOpen)
+
+        if (isOpen) then
+            close(88)
+            write(*, '(x,a,a)') "Report written to file: ", fileName
+        end if
 
     end subroutine searchTime
 
@@ -481,6 +578,35 @@ module report
 
         return
 
-    end function
+    end function prevDate
+
+    !If file exists, ask user if overwrite file
+    !Returns true if file should be overwritten
+    logical function overwriteReport(fileName)
+        character(100), intent(in) :: fileName
+        character :: answerYN
+        logical :: fileExist, overwrite
+
+        overwrite = .false.
+
+        inquire(file=fileName, exist=fileExist)
+        if (fileExist) then
+            do
+                write(*,'(x,a,a,a)') "File: ", trim(fileName), " exists."
+                write(*,'(x,a)') "Do you want to overwrite file? Y/N"
+                read(*,'(1a)') answerYN
+                if (answerYN == 'Y' .or. answerYN == 'y') then
+                    overwrite = .true.
+                    exit
+                else if (answerYN == 'N' .or. answerYN == 'n') then
+                    overwrite = .false.
+                    exit
+                end if
+            end do
+        end if
+
+        overwriteReport = overwrite
+
+    end function overwriteReport
 
 end module report
